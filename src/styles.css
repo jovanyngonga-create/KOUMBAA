@@ -608,6 +608,38 @@ textarea.form-input { min-height: 66px; resize: vertical; }
   .admin-login-card { padding: 24px; }
 }
 
+.main-nav a.active { color: #a65342; font-weight: 700; }
+.public-page-heading { padding-top: 58px; padding-bottom: 4px; }
+.public-page-heading h1, .public-not-found h1 { margin: 12px 0 8px; font-family: var(--serif); font-size: clamp(36px, 4.5vw, 52px); font-weight: 500; letter-spacing: -.045em; }
+.public-page-heading h1 em, .story-page-note h2 em { color: #b86c58; font-weight: 500; }
+.public-page-heading p { margin: 0; color: #82766f; font-size: 12px; line-height: 1.8; }
+.public-page-heading + .catalogue { padding-top: 30px; }
+.public-content-section { min-height: 55vh; padding-top: 58px; padding-bottom: 80px; }
+.public-content-section .public-page-heading { width: auto; padding: 0; }
+.public-promotion-grid { display: grid; gap: 16px; margin-top: 32px; }
+.public-promotion-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 22px; background: #f4e9e1; border: 1px solid #eee0d6; }
+.public-promotion-card .promo-icon { align-self: start; }
+.public-promotion-card h2 { margin: 7px 0; font-family: var(--serif); font-size: 23px; font-weight: 600; }
+.public-promotion-card p { margin: 0; color: #806f65; font-size: 11px; line-height: 1.7; }
+.public-promotion-card small { display: block; margin-top: 9px; color: #987566; font-size: 9px; }
+.public-promotion-card .button { white-space: nowrap; }
+.story-page-note { min-height: 0; margin-bottom: 65px; padding-top: 32px; text-align: center; }
+.story-page-note .eyebrow { justify-content: center; }
+.story-page-note h2 { margin: 12px auto 20px; font-family: var(--serif); font-size: clamp(27px, 4vw, 39px); font-weight: 500; }
+.contact-band .contact-address { display: block; margin-top: 10px; color: #eaded6; font-size: 11px; }
+.public-not-found { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; }
+.public-not-found > svg { color: #a65342; }
+.public-not-found h1 { margin: 0; }
+.public-not-found p { color: var(--muted); }
+
+@media (max-width: 680px) {
+  .public-page-heading { padding-top: 35px; }
+  .public-content-section { min-height: 48vh; padding-top: 35px; padding-bottom: 55px; }
+  .public-promotion-card { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .public-promotion-card .button { grid-column: 1 / -1; justify-self: start; }
+  .story-page-note { padding-top: 5px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

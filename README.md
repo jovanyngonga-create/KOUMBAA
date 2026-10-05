@@ -16,7 +16,9 @@ Site de commande de gâteaux en FCFA, avec catalogue public et tableau de bord a
    - `VITE_SUPABASE_URL` : l’URL de votre projet Supabase
    - `VITE_SUPABASE_ANON_KEY` : la clé publique du projet (jamais la clé `service_role`)
 5. Déployez le projet. Après chaque changement de variable d’environnement, relancez un déploiement.
-6. Connectez-vous à `/admin` avec le compte créé. Ajoutez vos coordonnées, votre numéro WhatsApp, les numéros Airtel Money et Moov Money, puis vos gâteaux et promotions.
+6. Connectez-vous à `/admin/login` avec le compte créé. `/admin` ouvre le tableau de bord après connexion. Les rubriques d’administration ont leurs propres adresses : `/admin/produits`, `/admin/commandes`, `/admin/categories`, `/admin/promotions` et `/admin/reglages`. Ajoutez vos coordonnées, votre numéro WhatsApp, les numéros Airtel Money et Moov Money, puis vos gâteaux et promotions.
+
+La boutique publique est également organisée en pages accessibles directement : `/`, `/catalogue`, `/promotions`, `/histoire` et `/contact`. Le routage Vercel renvoie ces adresses vers l’application pour qu’elles fonctionnent également après actualisation.
 
 Les commandes client sont créées via une fonction Supabase qui revérifie les produits publiés, leur disponibilité, les prix et les frais de livraison. Leur consultation et leur gestion, ainsi que les modifications du catalogue et les téléversements, nécessitent un compte explicitement promu administrateur. Les règles RLS Supabase et les politiques du stockage sont définies dans le script SQL.
 

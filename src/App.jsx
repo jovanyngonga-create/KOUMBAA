@@ -27,6 +27,22 @@ const getDiscountPrice = (product) => product.promo_price && product.promo_price
 const getCategory = (product) => product.categories?.name || product.category || 'Créations'
 const imageFallback = 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85'
 const publicErrorMessage = 'Cette action nécessite le site relié à Supabase. Suivez le guide de déploiement dans le README.'
+const adminTabPaths = {
+  overview: '/admin',
+  products: '/admin/produits',
+  orders: '/admin/commandes',
+  categories: '/admin/categories',
+  promotions: '/admin/promotions',
+  settings: '/admin/reglages',
+}
+const adminPathTabs = Object.fromEntries(Object.entries(adminTabPaths).map(([tab, path]) => [path, tab]))
+const publicPageTitles = {
+  '/': 'Accueil',
+  '/catalogue': 'Nos gâteaux',
+  '/promotions': 'Promotions',
+  '/histoire': 'Notre histoire',
+  '/contact': 'Contact',
+}
 
 function App() {
   const [products, setProducts] = useState(sampleProducts)
@@ -38,7 +54,7 @@ function App() {
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
   const [orderProduct, setOrderProduct] = useState(null)
-  const [adminOpen, setAdminOpen] = useState(window.location.pathname === '/admin')
+  const [route, setRoute] = useState(window.location.pathname)
   const [mobileMenu, setMobileMenu] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -68,10 +84,27 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const pop = () => setAdminOpen(window.location.pathname === '/admin')
+    const pop = () => setRoute(window.location.pathname)
     window.addEventListener('popstate', pop)
     return () => window.removeEventListener('popstate', pop)
   }, [])
+
+  useEffect(() => {
+    const pageTitle = publicPageTitles[route] || (route.startsWith('/admin') ? 'Administration' : 'Page introuvable')
+    document.title = `${pageTitle} — ${settings.shop_name}`
+  }, [route, settings.shop_name])
+
+  function navigate(path, replace = false) {
+    if (replace) window.history.replaceState({}, '', path)
+    else if (window.location.pathname !== path) window.history.pushState({}, '', path)
+    setRoute(path)
+    setMobileMenu(false)
+    window.scrollTo(0, 0)
+  }
+  function followRoute(event, path) {
+    event.preventDefault()
+    navigate(path)
+  }
 
   const categoryNames = useMemo(() => {
     const names = categories.length ? categories.map((item) => item.name) : [...new Set(products.map(getCategory))]
@@ -79,14 +112,9 @@ function App() {
   }, [categories, products])
   const visibleProducts = products.filter((item) => activeCategory === 'Tout voir' || getCategory(item) === activeCategory)
   const today = new Date().toISOString().slice(0, 10)
-  const activePromotion = promotions.find((item) => item.active && (!item.starts_at || item.starts_at <= today) && (!item.ends_at || item.ends_at >= today))
+  const currentPromotions = promotions.filter((item) => item.active && (!item.starts_at || item.starts_at <= today) && (!item.ends_at || item.ends_at >= today))
+  const activePromotion = currentPromotions[0]
 
-  function goAdmin(open) {
-    const next = open ? '/admin' : '/'
-    window.history.pushState({}, '', next)
-    setAdminOpen(open)
-    setMobileMenu(false)
-  }
   function addToCart(product, details = {}) {
     setCart((items) => [...items, { ...details, product, cartId: `${product.id}-${Date.now()}-${Math.random()}` }])
     setOrderProduct(null)
@@ -100,30 +128,37 @@ function App() {
     window.setTimeout(() => setNotice(''), 5500)
   }
 
-  if (adminOpen) return <AdminDashboard onClose={() => goAdmin(false)} notify={showNotice} />
+  if (route.startsWith('/admin')) return <AdminDashboard route={route} navigate={navigate} onClose={() => navigate('/')} notify={showNotice} />
+
+  const publicPage = publicPageTitles[route] ? route : null
+  if (!publicPage) return <div className="public-not-found"><CakeSlice size={34} /><h1>Cette page n’existe pas.</h1><p>Retrouvez nos gâteaux et nos créations depuis l’accueil.</p><a className="button button-dark" href="/" onClick={(event) => followRoute(event, '/')}>Retour à l’accueil <ArrowRight size={16} /></a></div>
 
   return (
     <div className="app-shell">
-      <div className="announcement"><Sparkles size={14} /><span>Une envie sucrée ? Nous préparons vos plus beaux moments.</span><a href="#catalogue">Découvrir nos créations <ArrowRight size={13} /></a></div>
+      <div className="announcement"><Sparkles size={14} /><span>Une envie sucrée ? Nous préparons vos plus beaux moments.</span><a href="/catalogue" onClick={(event) => followRoute(event, '/catalogue')}>Découvrir nos créations <ArrowRight size={13} /></a></div>
       <header className="site-header">
-        <a className="brand" href="#accueil" aria-label="Douceurs du Gabon, accueil">
+        <a className="brand" href="/" onClick={(event) => followRoute(event, '/')} aria-label="Douceurs du Gabon, accueil">
           <span className="brand-mark"><CakeSlice size={21} strokeWidth={1.8} /></span>
           <span><b>{settings.shop_name}</b><small>{settings.tagline}</small></span>
         </a>
         <button className="mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="Ouvrir le menu"><Menu /></button>
         <nav className={mobileMenu ? 'main-nav mobile-open' : 'main-nav'}>
-          <a href="#accueil" onClick={() => setMobileMenu(false)}>Accueil</a><a href="#catalogue" onClick={() => setMobileMenu(false)}>Nos gâteaux</a><a href="#histoire" onClick={() => setMobileMenu(false)}>Notre histoire</a><a href="#contact" onClick={() => setMobileMenu(false)}>Contact</a>
+          <a className={route === '/' ? 'active' : ''} href="/" onClick={(event) => followRoute(event, '/')}>Accueil</a>
+          <a className={route === '/catalogue' ? 'active' : ''} href="/catalogue" onClick={(event) => followRoute(event, '/catalogue')}>Nos gâteaux</a>
+          <a className={route === '/promotions' ? 'active' : ''} href="/promotions" onClick={(event) => followRoute(event, '/promotions')}>Promotions</a>
+          <a className={route === '/histoire' ? 'active' : ''} href="/histoire" onClick={(event) => followRoute(event, '/histoire')}>Notre histoire</a>
+          <a className={route === '/contact' ? 'active' : ''} href="/contact" onClick={(event) => followRoute(event, '/contact')}>Contact</a>
         </nav>
         <div className="header-actions">
           <button className="icon-button cart-button" aria-label="Ouvrir le panier" onClick={() => setCartOpen(true)}><ShoppingBag size={19} />{cart.length > 0 && <span>{cart.length}</span>}</button>
-          <a className="button button-dark header-order" href="#catalogue">Commander <ArrowUpRight size={15} /></a>
+          <a className="button button-dark header-order" href="/catalogue" onClick={(event) => followRoute(event, '/catalogue')}>Commander <ArrowUpRight size={15} /></a>
         </div>
       </header>
 
       {notice && <div className="notice" role="alert"><CircleAlert size={17} />{notice}<button onClick={() => setNotice('')} aria-label="Fermer"><X size={16} /></button></div>}
 
       <main>
-        <section className="hero section-wrap" id="accueil">
+        {route === '/' && <section className="hero section-wrap" id="accueil">
           <div className="hero-copy">
             <div className="eyebrow"><span /> PETITES JOIES, GRANDES OCCASIONS</div>
             <h1>Un peu de douceur<br />dans vos <em>beaux jours.</em></h1>
@@ -137,24 +172,29 @@ function App() {
             <div className="hero-stamp"><span>100%</span><small>DOUCEUR</small><Heart size={15} fill="currentColor" /></div>
           </div>
           <div className="hero-decoration decoration-one">✳</div><div className="hero-decoration decoration-two">✳</div>
-        </section>
+        </section>}
 
-        {activePromotion && <section className="promotion-strip"><div className="promo-icon"><Sparkles size={20} /></div><div><span>LA PETITE ATTENTION DU MOMENT</span><b>{activePromotion.title}</b><p>{activePromotion.description}</p></div><a href={settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}` : '#contact'} target={settings.whatsapp ? '_blank' : undefined} rel="noreferrer">En savoir plus <ArrowUpRight size={15} /></a></section>}
+        {route === '/' && activePromotion && <section className="promotion-strip"><div className="promo-icon"><Sparkles size={20} /></div><div><span>LA PETITE ATTENTION DU MOMENT</span><b>{activePromotion.title}</b><p>{activePromotion.description}</p></div><a href={settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}` : '/contact'} target={settings.whatsapp ? '_blank' : undefined} rel="noreferrer">En savoir plus <ArrowUpRight size={15} /></a></section>}
 
-        <section className="catalogue section-wrap" id="catalogue">
+        {route === '/catalogue' && <section className="public-page-heading section-wrap"><div className="eyebrow"><span /> LE BONHEUR EN PARTS</div><h1>Nos créations <em>maison</em></h1><p>Choisissez votre gâteau, sa taille et votre touche personnelle.</p></section>}
+        {(route === '/' || route === '/catalogue') && <section className="catalogue section-wrap" id="catalogue">
           <div className="section-heading"><div><div className="eyebrow"><span /> LE BONHEUR EN PARTS</div><h2>Nos créations <em>maison</em></h2><p>Chaque gâteau est réalisé avec attention, juste pour vous.</p></div><a className="text-link desktop-link" href="#contact">Une demande spéciale ? <ArrowRight size={15} /></a></div>
           <div className="category-row"><div className="category-tabs">{categoryNames.map((name) => <button key={name} className={activeCategory === name ? 'category-tab selected' : 'category-tab'} onClick={() => setActiveCategory(name)}>{name}</button>)}</div><span className="result-count">{loading ? 'Chargement…' : `${visibleProducts.length} douceurs`}</span></div>
           {visibleProducts.length === 0 && !loading ? <div className="empty-catalog"><CakeSlice size={32} /><p>Nos prochaines douceurs arrivent bientôt.</p></div> : <div className="product-grid">{visibleProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} onOrder={() => setOrderProduct(product)} />)}</div>}
           <div className="catalogue-footer"><span>Préparés à la commande · Ingrédients soigneusement sélectionnés</span><span>Nos prix sont en FCFA</span></div>
-        </section>
+        </section>}
 
-        <section className="promise-section" id="histoire"><div className="promise-image"><img src="https://images.unsplash.com/photo-1557308536-ee471ef2c390?auto=format&fit=crop&w=1000&q=85" alt="Préparation artisanale d'un gâteau" /><div className="image-caption">Un geste après l’autre, avec le cœur.</div></div><div className="promise-copy"><div className="eyebrow"><span /> NOTRE PETIT SECRET</div><h2>Du vrai, du beau,<br />du <em>fait avec cœur.</em></h2><p>Nous croyons aux petites attentions et aux souvenirs qui se partagent autour d’un gâteau. Chaque création est préparée à la commande, avec de bons ingrédients et le souci du détail.</p><div className="promise-points"><div><span><Heart size={17} /></span><div><b>Préparé avec soin</b><small>Fait à la commande, rien que pour vous.</small></div></div><div><span><Sparkles size={17} /></span><div><b>Une touche à vous</b><small>Personnalisez votre gâteau pour l’occasion.</small></div></div></div><a href="#catalogue" className="text-link">Trouver votre gâteau <ArrowRight size={15} /></a></div></section>
+        {route === '/promotions' && <section className="public-content-section section-wrap"><div className="public-page-heading"><div className="eyebrow"><span /> PETITES ATTENTIONS</div><h1>Les offres <em>du moment.</em></h1><p>Découvrez nos promotions et faites-vous plaisir en FCFA.</p></div>{currentPromotions.length ? <div className="public-promotion-grid">{currentPromotions.map((promotion) => <article className="public-promotion-card" key={promotion.id}><span className="promo-icon"><Sparkles size={20} /></span><div><span className="eyebrow"><span /> OFFRE GOURMANDE</span><h2>{promotion.title}</h2><p>{promotion.description || 'Contactez-nous pour en savoir plus sur cette offre.'}</p>{(promotion.starts_at || promotion.ends_at) && <small>{promotion.starts_at ? `Du ${promotion.starts_at}` : ''}{promotion.starts_at && promotion.ends_at ? ' ' : ''}{promotion.ends_at ? `au ${promotion.ends_at}` : ''}</small>}</div><a className="button button-outline" href={settings.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, '')}` : '/contact'} target={settings.whatsapp ? '_blank' : undefined} rel="noreferrer">En profiter <ArrowRight size={15} /></a></article>)}</div> : <div className="empty-catalog"><Sparkles size={32} /><p>Aucune promotion en cours. Nos douceurs vous attendent au catalogue.</p><a className="text-link" href="/catalogue" onClick={(event) => followRoute(event, '/catalogue')}>Voir les gâteaux <ArrowRight size={15} /></a></div>}</section>}
 
-        <section className="steps-section"><div className="eyebrow"><span /> C’EST TOUT SIMPLE</div><h2>Votre gâteau, en <em>quelques clics.</em></h2><div className="steps-grid"><div className="step"><span className="step-number">01</span><span className="step-icon"><CakeSlice /></span><b>Choisissez</b><p>Trouvez la douceur qui vous ressemble dans notre catalogue.</p></div><div className="step"><span className="step-number">02</span><span className="step-icon"><Pencil /></span><b>Personnalisez</b><p>Indiquez la taille, votre date et votre petite touche personnelle.</p></div><div className="step"><span className="step-number">03</span><span className="step-icon"><PackageCheck /></span><b>Savourez</b><p>Retirez votre commande ou recevez-la à l’adresse indiquée.</p></div></div></section>
+        {(route === '/' || route === '/histoire') && <section className="promise-section" id="histoire"><div className="promise-image"><img src="https://images.unsplash.com/photo-1557308536-ee471ef2c390?auto=format&fit=crop&w=1000&q=85" alt="Préparation artisanale d'un gâteau" /><div className="image-caption">Un geste après l’autre, avec le cœur.</div></div><div className="promise-copy"><div className="eyebrow"><span /> NOTRE PETIT SECRET</div><h2>Du vrai, du beau,<br />du <em>fait avec cœur.</em></h2><p>Nous croyons aux petites attentions et aux souvenirs qui se partagent autour d’un gâteau. Chaque création est préparée à la commande, avec de bons ingrédients et le souci du détail.</p><div className="promise-points"><div><span><Heart size={17} /></span><div><b>Préparé avec soin</b><small>Fait à la commande, rien que pour vous.</small></div></div><div><span><Sparkles size={17} /></span><div><b>Une touche à vous</b><small>Personnalisez votre gâteau pour l’occasion.</small></div></div></div><a href="/catalogue" onClick={(event) => followRoute(event, '/catalogue')} className="text-link">Trouver votre gâteau <ArrowRight size={15} /></a></div></section>}
 
-        <section className="contact-band" id="contact"><div className="contact-flower">✳</div><div><span>UN GÂTEAU EN TÊTE ?</span><h2>On en parle ensemble.</h2><p>Une question ou une création sur mesure ? Écrivez-nous.</p></div><div className="contact-links">{settings.whatsapp && <a className="button button-light" href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a>}{settings.phone && <a className="contact-phone" href={`tel:${settings.phone}`}><Phone size={16} /> {settings.phone}</a>}{!settings.phone && !settings.whatsapp && <span className="contact-placeholder">Coordonnées bientôt disponibles</span>}</div></section>
+        {(route === '/' || route === '/histoire') && <section className="steps-section"><div className="eyebrow"><span /> C’EST TOUT SIMPLE</div><h2>Votre gâteau, en <em>quelques clics.</em></h2><div className="steps-grid"><div className="step"><span className="step-number">01</span><span className="step-icon"><CakeSlice /></span><b>Choisissez</b><p>Trouvez la douceur qui vous ressemble dans notre catalogue.</p></div><div className="step"><span className="step-number">02</span><span className="step-icon"><Pencil /></span><b>Personnalisez</b><p>Indiquez la taille, votre date et votre petite touche personnelle.</p></div><div className="step"><span className="step-number">03</span><span className="step-icon"><PackageCheck /></span><b>Savourez</b><p>Retirez votre commande ou recevez-la à l’adresse indiquée.</p></div></div></section>}
+
+        {route === '/histoire' && <section className="public-content-section section-wrap story-page-note"><div className="eyebrow"><span /> UNE DOUCEUR À PARTAGER</div><h2>Créons ensemble votre prochain <em>beau souvenir.</em></h2><a className="button button-dark" href="/catalogue" onClick={(event) => followRoute(event, '/catalogue')}>Découvrir les gâteaux <ArrowRight size={16} /></a></section>}
+
+        {(route === '/' || route === '/contact') && <section className="contact-band" id="contact"><div className="contact-flower">✳</div><div><span>UN GÂTEAU EN TÊTE ?</span><h2>On en parle ensemble.</h2><p>Une question ou une création sur mesure ? Écrivez-nous.</p>{settings.address && <small className="contact-address">{settings.address}</small>}</div><div className="contact-links">{settings.whatsapp && <a className="button button-light" href={`https://wa.me/${settings.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a>}{settings.phone && <a className="contact-phone" href={`tel:${settings.phone}`}><Phone size={16} /> {settings.phone}</a>}{!settings.phone && !settings.whatsapp && <span className="contact-placeholder">Coordonnées bientôt disponibles</span>}</div></section>}
       </main>
-      <footer className="site-footer"><a className="brand footer-brand" href="#accueil"><span className="brand-mark"><CakeSlice size={19} /></span><span><b>{settings.shop_name}</b><small>Des gâteaux faits avec amour</small></span></a><div className="footer-meta"><span>Fait avec soin au Gabon · Prix en FCFA</span><button className="admin-link" onClick={() => goAdmin(true)}><ShieldCheck size={14} /> Espace admin</button></div><span className="footer-copy">© {new Date().getFullYear()} {settings.shop_name}</span></footer>
+      <footer className="site-footer"><a className="brand footer-brand" href="/" onClick={(event) => followRoute(event, '/')}><span className="brand-mark"><CakeSlice size={19} /></span><span><b>{settings.shop_name}</b><small>Des gâteaux faits avec amour</small></span></a><div className="footer-meta"><span>Fait avec soin au Gabon · Prix en FCFA</span><a className="admin-link" href="/admin/login" onClick={(event) => followRoute(event, '/admin/login')}><ShieldCheck size={14} /> Espace admin</a></div><span className="footer-copy">© {new Date().getFullYear()} {settings.shop_name}</span></footer>
       {orderProduct && <OrderDialog product={orderProduct} settings={settings} onClose={() => setOrderProduct(null)} onAdd={addToCart} notify={showNotice} />}
       {cartOpen && <CartDrawer cart={cart} settings={settings} onClose={() => setCartOpen(false)} onRemove={(id) => setCart((items) => items.filter((item) => item.cartId !== id))} onQuantity={changeCartQty} notify={showNotice} onClear={() => setCart([])} />}
     </div>
@@ -271,13 +311,13 @@ const adminTabs = [
   { id: 'settings', label: 'Boutique & paiements', icon: Settings },
 ]
 
-function AdminDashboard({ onClose, notify }) {
+function AdminDashboard({ route, navigate, onClose, notify }) {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(Boolean(supabase))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
-  const [tab, setTab] = useState('overview')
+  const tab = adminPathTabs[route] || 'overview'
   const [products, setProducts] = useState([])
   const [orders, setOrders] = useState([])
   const [categories, setCategories] = useState([])
@@ -296,6 +336,10 @@ function AdminDashboard({ onClose, notify }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession))
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!authLoading && session && route === '/admin/login') navigate('/admin', true)
+  }, [authLoading, session, route])
 
   useEffect(() => {
     if (!session || !supabase) return
@@ -338,8 +382,20 @@ function AdminDashboard({ onClose, notify }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setAuthLoading(false)
     if (error) setAuthError(error.message)
+    else navigate('/admin', true)
   }
-  async function signOut() { if (supabase) await supabase.auth.signOut(); setSession(null) }
+  async function signOut() {
+    if (supabase) {
+      const { error } = await supabase.auth.signOut()
+      if (error) { setAuthError(`Déconnexion impossible : ${error.message}`); return }
+    }
+    setSession(null)
+    navigate('/admin/login', true)
+  }
+  function goTab(nextTab) {
+    navigate(adminTabPaths[nextTab] || adminTabPaths.overview)
+    setMobileSidebar(false)
+  }
   function report(message, error) {
     if (error) { setSaveMessage(`${message} : ${error.message}`); return false }
     setSaveMessage('')
@@ -472,10 +528,10 @@ function AdminDashboard({ onClose, notify }) {
 
   const pendingCount = orders.filter((item) => item.status === 'pending').length
   return <div className="admin-layout">
-    <aside className={mobileSidebar ? 'admin-sidebar sidebar-open' : 'admin-sidebar'}><div className="admin-side-brand"><span className="brand-mark"><CakeSlice size={20} /></span><span><b>{settings.shop_name}</b><small>Administration</small></span><button className="sidebar-mobile-close" onClick={() => setMobileSidebar(false)} aria-label="Fermer"><X size={18} /></button></div><div className="admin-nav-label">MENU PRINCIPAL</div><nav className="admin-nav">{adminTabs.map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'admin-nav-item active' : 'admin-nav-item'} onClick={() => { setTab(id); setMobileSidebar(false) }}><Icon size={18} />{label}{id === 'orders' && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</button>)}</nav><div className="admin-side-bottom"><div className="admin-user"><span className="admin-avatar">{session.user.email?.[0]?.toUpperCase()}</span><span><b>{session.user.email}</b><small>Administrateur</small></span></div><button className="admin-nav-item logout-button" onClick={signOut}><LogOut size={17} /> Se déconnecter</button><button className="admin-store-link" onClick={onClose}><ArrowLeft size={15} /> Voir la boutique</button></div></aside>
+    <aside className={mobileSidebar ? 'admin-sidebar sidebar-open' : 'admin-sidebar'}><div className="admin-side-brand"><span className="brand-mark"><CakeSlice size={20} /></span><span><b>{settings.shop_name}</b><small>Administration</small></span><button className="sidebar-mobile-close" onClick={() => setMobileSidebar(false)} aria-label="Fermer"><X size={18} /></button></div><div className="admin-nav-label">MENU PRINCIPAL</div><nav className="admin-nav">{adminTabs.map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'admin-nav-item active' : 'admin-nav-item'} onClick={() => goTab(id)}><Icon size={18} />{label}{id === 'orders' && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</button>)}</nav><div className="admin-side-bottom"><div className="admin-user"><span className="admin-avatar">{session.user.email?.[0]?.toUpperCase()}</span><span><b>{session.user.email}</b><small>Administrateur</small></span></div><button className="admin-nav-item logout-button" onClick={signOut}><LogOut size={17} /> Se déconnecter</button><button className="admin-store-link" onClick={onClose}><ArrowLeft size={15} /> Voir la boutique</button></div></aside>
     <main className="admin-main"><header className="admin-topbar"><button className="admin-mobile-menu" onClick={() => setMobileSidebar(true)} aria-label="Menu"><Menu /></button><div className="admin-breadcrumb">Boutique <span>/</span> <b>{adminTabs.find((item) => item.id === tab)?.label}</b></div><a className="admin-preview-link" href="/" target="_blank" rel="noreferrer"><Eye size={15} /> Voir le site <ArrowUpRight size={14} /></a></header><div className="admin-content">
       {saveMessage && <div className="admin-alert"><CircleAlert size={17} />{saveMessage}<button onClick={() => setSaveMessage('')}><X size={16} /></button></div>}
-      {tab === 'overview' && <OverviewPanel products={products} orders={orders} pendingCount={pendingCount} goTab={setTab} />}
+      {tab === 'overview' && <OverviewPanel products={products} orders={orders} pendingCount={pendingCount} goTab={goTab} />}
       {tab === 'products' && <ProductsPanel products={products} categories={categories} onNew={() => setProductEditor({})} onEdit={setProductEditor} onToggle={togglePublished} onDelete={deleteProduct} />}
       {tab === 'orders' && <OrdersPanel orders={orders} onStatus={updateOrder} onDelete={deleteOrder} />}
       {tab === 'categories' && <CategoriesPanel categories={categories} categoryName={categoryName} setCategoryName={setCategoryName} onAdd={addCategory} onRename={renameCategory} onDelete={removeCategory} products={products} />}
